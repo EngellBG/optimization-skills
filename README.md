@@ -15,8 +15,12 @@ El norte de ambos es el **punto óptimo, no el máximo**: más velocidad, mejore
 
 ```
 /audit        → reporte de hallazgos por eje, con severidad y tabla de prioridades
-/plan-fixes   → plan por fases (quick-wins, condicionales, secuencia recomendada)
+                (opcional: lo guarda en audit-report.md como entregable)
+/plan-fixes   → lee audit-report.md si existe → plan por fases
+                (quick-wins, condicionales, secuencia recomendada)
 ```
+
+El artefacto `audit-report.md` conecta ambos skills: hace que el plan parta del reporte completo aunque el contexto del chat se haya resumido entremedio, en vez de depender de que los hallazgos sigan "en memoria".
 
 Cada uno se detiene a preguntar cuando una decisión cambia el resultado, en vez de avanzar sobre suposiciones.
 

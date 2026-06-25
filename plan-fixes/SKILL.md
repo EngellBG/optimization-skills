@@ -17,7 +17,7 @@ Penaliza la sobre-ingeniería: prefiere la solución que captura ~90% del benefi
 
 ## Entrada
 
-Los hallazgos de la auditoría previa (el reporte ya generado). Si no hay reporte en contexto, pídelo o corre `/audit` primero.
+Los hallazgos de la auditoría previa (el reporte ya generado). **Prefiere leerlo desde un archivo si existe** (p. ej. `audit-report.md`): el contexto de chat puede haberse resumido y degradado los hallazgos, y el plan saldría de datos incompletos. Si no hay reporte ni en archivo ni en contexto, pídelo o corre `/audit` primero.
 
 ## Primero — no planees sobre suposiciones
 

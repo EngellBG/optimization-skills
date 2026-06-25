@@ -29,7 +29,8 @@ Para preguntas que bloquean el resultado, usa `AskUserQuestion`.
 2. **Explorar.** Estructura del proyecto, entrypoints, dependencias, configs, build. Identifica el stack real (no el declarado).
 3. **Leer lo clave.** Lógica de negocio, manejo de dinero/datos, auth, endpoints, capa de datos. Verifica en el código cada afirmación.
 4. **Evaluar por ejes** (abajo). Omite el que no aplique y dilo explícitamente.
-5. **Reportar** según las reglas de salida.
+5. **Verificar antes de afirmar (anti-falsos-positivos).** Antes de reportar, vuelve al código y trata de REFUTAR cada hallazgo 🔴/🟠. Si no lo puedes confirmar con el código a la vista, bájalo de severidad o descártalo. En auditoría, un falso positivo plausible cuesta más que un hallazgo omitido — y el riesgo crece cuando paralelizas con subagentes (cada uno ve solo su parte).
+6. **Reportar** según las reglas de salida.
 
 Para repos grandes, paraleliza la exploración con subagentes `Explore` (uno por capa/eje), pero el juicio final y el reporte los consolidas tú.
 
@@ -59,10 +60,11 @@ Omite el que no aplique — y di que lo omites.
   |---|---|---|---|
 
 - Ordena la tabla por impacto/esfuerzo (gana lo de alto impacto / bajo esfuerzo).
+- Si el usuario seguirá con `/plan-fixes`, **ofrece guardar el reporte en un archivo** (p. ej. `audit-report.md`) para que el plan no dependa de un contexto de chat que pueda resumirse. Guardar el reporte es producir el entregable — no contradice "no tocar código".
 
 ## Lo que NO debe hacer este skill
 
-- No editar código (solo auditar y proponer).
+- No editar el código del proyecto (solo auditar y proponer). Guardar el reporte de salida como archivo no cuenta como editar código.
 - No inventar hallazgos: cada uno debe estar anclado a código verificado.
 - No sobre-ingeniería en las recomendaciones — propón lo mínimo que resuelve.
 - No avanzar sobre supuestos no confirmados cuando la decisión cambia el resultado.

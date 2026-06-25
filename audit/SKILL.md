@@ -29,7 +29,10 @@ Para preguntas que bloquean el resultado, usa `AskUserQuestion`.
 2. **Explorar.** Estructura del proyecto, entrypoints, dependencias, configs, build. Identifica el stack real (no el declarado).
 3. **Leer lo clave.** Lógica de negocio, manejo de dinero/datos, auth, endpoints, capa de datos. Verifica en el código cada afirmación.
 4. **Evaluar por ejes** (abajo). Omite el que no aplique y dilo explícitamente.
-5. **Verificar antes de afirmar (anti-falsos-positivos).** Antes de reportar, vuelve al código y trata de REFUTAR cada hallazgo 🔴/🟠. Si no lo puedes confirmar con el código a la vista, bájalo de severidad o descártalo. En auditoría, un falso positivo plausible cuesta más que un hallazgo omitido — y el riesgo crece cuando paralelizas con subagentes (cada uno ve solo su parte).
+5. **Verificar antes de afirmar (anti-falsos-positivos).** Antes de reportar, vuelve al código y trata de REFUTAR cada hallazgo 🔴/🟠 — no de confirmarlo. En auditoría, un falso positivo plausible cuesta más que un hallazgo omitido: manda a perseguir fantasmas y quema la confianza en el resto del reporte. Reglas:
+   - **Verificador ≠ hallador.** Si paralelizaste con subagentes `Explore`, que la verificación de cada hallazgo la haga un subagente distinto al que lo encontró — o consolídala tú con la vista completa. Quien encontró el bug tiende a defenderlo; la independencia mata el sesgo, que es la raíz del falso positivo (cada subagente ve solo su parte).
+   - **Cadena de prueba por hallazgo grave.** Cada 🔴/🟠 debe poder mostrar: (a) la línea exacta; (b) por qué el path es ALCANZABLE (no dead code, input no sanitizado antes); (c) por qué NO hay mitigación aguas arriba/abajo. Falta un eslabón → no está confirmado: bájalo a 🟡 o descártalo.
+   - **Default escéptico.** Ante la duda, refutado. Un hallazgo sin cadena de prueba completa no se reporta como confirmado.
 6. **Reportar** según las reglas de salida.
 
 Para repos grandes, paraleliza la exploración con subagentes `Explore` (uno por capa/eje), pero el juicio final y el reporte los consolidas tú.

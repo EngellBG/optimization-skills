@@ -33,6 +33,7 @@ Para preguntas que bloquean el resultado, usa `AskUserQuestion`.
    - **Verificador ≠ hallador.** Si paralelizaste con un `Workflow` (ver "Paralelización"), la verificación de cada hallazgo la hace un agente distinto al que lo encontró — segundo stage del pipeline, agente fresco que intenta refutar. Si exploraste en serie, consolídala tú con la vista completa. Quien encontró el bug tiende a defenderlo; la independencia mata el sesgo, que es la raíz del falso positivo (cada agente ve solo su parte).
    - **Cadena de prueba por hallazgo grave.** Cada 🔴/🟠 debe poder mostrar: (a) la línea exacta; (b) por qué el path es ALCANZABLE (no dead code, input no sanitizado antes); (c) por qué NO hay mitigación aguas arriba/abajo. Falta un eslabón → no está confirmado: bájalo a 🟡 o descártalo.
    - **Default escéptico — pero solo sobre evidencia leída.** Ante la duda, refutado. Un hallazgo sin cadena de prueba completa no se reporta como confirmado. Ojo con la trampa: "refutado" significa *fui al código y el hallazgo no se sostiene*, NO *no pude verlo*. Un verificador que solo recibe el texto del hallazgo y no abre el archivo refutará todo por falta de contexto y matará hallazgos reales. Quien verifica **debe leer el archivo y seguir el flujo aguas arriba/abajo**; si aun así le falta acceso o contexto para cerrar la cadena, eso es **no verificable**, no refutado — y un no verificable baja a 🟡, no se descarta en silencio.
+   - **La refutación se paga con cita, no con palabra.** "Leí el archivo" es autodeclarado y sale gratis: un verificador que ojeó por encima marca que leyó con toda sinceridad. Por eso una refutación solo cuenta si viene con la **cita textual de las líneas que tumban el hallazgo** — la mitigación concreta, el guard, el path muerto. Sin cita literal, trátalo como no verificable (🟡), no como descartado. El modo de fallo dominante no es el verificador que no puede leer; es el que cree que leyó.
 6. **Reportar** según las reglas de salida.
 
 ## Paralelización — exploración como workflow de agentes Sonnet
@@ -46,8 +47,9 @@ Reglas de la paralelización:
 - **Cuidado con los hallazgos que cruzan ejes.** Un agente por eje ve una rebanada delgada, así que un bug con dos caras (un IDOR que además corrompe datos) se reporta dos veces a medias o se pierde entre ambos. Al consolidar, funde los hallazgos que apunten al mismo `archivo:línea` antes de asignar severidad — el fundido suele ser más grave que cualquiera de las mitades.
 - **Output estructurado:** exige `schema` a cada agente (lista de hallazgos con `file`, `line`, `evidence`, `axis`, `severity_guess`). Así consolidas sin parsear texto.
 - **Verificación independiente (ver paso 5):** el agente que verifica un hallazgo grave debe ser **distinto** al que lo encontró. En el workflow, esto es un segundo stage: cada hallazgo 🔴/🟠 candidato pasa a un agente verificador fresco (también Sonnet) que intenta **refutarlo**. Usa `pipeline()` para que cada eje verifique en cuanto termina de explorar, sin barrera global.
-- **Dale al verificador con qué verificar.** El prompt de refutación debe incluir la ruta y ordenarle **abrir el archivo y seguir el flujo**, no razonar sobre el resumen del hallazgo. Un verificador ciego con default escéptico es un generador de falsos negativos: refuta lo que no puede ver (ver paso 5).
-- **Pon techo al fan-out de verificación.** Un repo con muchos hallazgos altos lanza un verificador por cada uno; el harness limita la concurrencia, no el gasto. Acota a los N más graves por eje y **declara con `log()` lo que quedó sin verificar** — un tope silencioso se lee como "todo verificado" cuando no lo está. Esos hallazgos sin verificar se reportan como 🟡, no como confirmados.
+- **Dale al verificador con qué verificar, y cóbrale la cita.** El prompt de refutación debe incluir la ruta y ordenarle **abrir el archivo y seguir el flujo**, no razonar sobre el resumen del hallazgo. Y debe exigir `evidence_read`: la cita textual del código que tumba el hallazgo. Un verificador ciego con default escéptico refuta lo que no puede ver; uno que solo autodeclara "sí leí" refuta lo que ojeó. Ambos son generadores de falsos negativos (ver paso 5).
+- **Pon techo al fan-out de verificación.** Un repo con muchos hallazgos altos lanza un verificador por cada uno; el harness limita la concurrencia, no el gasto. Acota a los N más graves por rebanada y **declara con `log()` lo que quedó sin verificar** — un tope silencioso se lee como "todo verificado" cuando no lo está. Esos hallazgos sin verificar se reportan como 🟡, no como confirmados.
+- **Un verificador caído no borra el hallazgo.** `parallel()` resuelve a `null` cuando un agente muere, así que un `.filter(Boolean)` sobre los veredictos desaparece el hallazgo entero del reporte — el mismo falso negativo silencioso, por otra puerta. Mapea los veredictos por índice y deja `verdict: null`; ese hallazgo se reporta como 🟡.
 - **Consolidación:** tú recibes los resultados del workflow, aplicas severidad definitiva, descartas los refutados y redactas el reporte. El workflow recolecta; tú decides.
 - **La red atrapa falsos positivos, no subestimaciones.** Solo se verifica lo que el explorador marcó crítico/alto, así que un grave que Sonnet etiquetó "medio" nunca llega al verificador. Es el trade-off deliberado del paso 5 y para una auditoría normal está bien. Cuando el usuario pide **"a fondo"**, pasa también por verificación los `medio` de Seguridad y Datos — que es donde una subestimación se paga cara.
 
@@ -56,7 +58,7 @@ Esqueleto mínimo (ajústalo al repo real). Los schemas van fijos abajo — no l
 ```js
 export const meta = {
   name: 'audit-explore',
-  description: 'Exploración paralela read-only de una auditoría por ejes',
+  description: 'Exploración paralela read-only de una auditoría por rebanadas',
   phases: [{ title: 'Explorar' }, { title: 'Verificar' }],
 }
 
@@ -88,36 +90,42 @@ const VERDICT_SCHEMA = {
   properties: {
     refuted: { type: 'boolean', description: 'true SOLO si leíste el código y el hallazgo no se sostiene. Si no pudiste leerlo, no es refutado: marca read_the_file=false' },
     read_the_file: { type: 'boolean', description: 'false si no pudiste abrir el archivo o te faltó contexto para cerrar la cadena → el hallazgo queda NO VERIFICABLE, no descartado' },
+    evidence_read: { type: 'string', description: 'OBLIGATORIO si refuted=true: cita TEXTUAL de las líneas que leíste y que tumban el hallazgo (la mitigación, el guard, el path muerto). Sin cita literal el veredicto no cuenta como refutación — vale como no verificable' },
     reason: { type: 'string', description: 'eslabón que falta (alcanzabilidad, mitigación aguas arriba/abajo) o por qué se sostiene' },
     severity_final: { type: 'string', enum: ['critico', 'alto', 'medio', 'descartado'] },
   },
 }
 
-// Tope de verificadores por eje: acota el gasto y deja rastro de lo que no se verificó.
-const MAX_VERIFY_POR_EJE = 8
+// Tope de verificadores por rebanada: acota el gasto y deja rastro de lo que no se verificó.
+const MAX_VERIFY_POR_REBANADA = 8
 
-const AXES = [ /* solo los ejes aplicables (o módulos), con su prompt de exploración */ ]
+// Unidades de exploración: módulos/capas o ejes, según el corte que elegiste arriba.
+const SLICES = [ /* { label, prompt } por rebanada */ ]
 const results = await pipeline(
-  AXES,
-  ax => agent(ax.prompt, { model: 'sonnet', phase: 'Explorar', schema: FINDINGS_SCHEMA }),
+  SLICES,
+  slice => agent(slice.prompt, { model: 'sonnet', phase: 'Explorar', schema: FINDINGS_SCHEMA }),
   async (found) => {
-    const all = found.findings || []
+    const all = found?.findings || []
     const graves = all
       .filter(f => f.severity_guess === 'critico' || f.severity_guess === 'alto')
       .sort((a, b) => (a.severity_guess === 'critico' ? 0 : 1) - (b.severity_guess === 'critico' ? 0 : 1))
-    const aVerificar = graves.slice(0, MAX_VERIFY_POR_EJE)  // críticos primero: el tope nunca corta un crítico
+    const aVerificar = graves.slice(0, MAX_VERIFY_POR_REBANADA)  // críticos primero: el tope nunca corta un crítico
     if (graves.length > aVerificar.length) {
-      log(`sin verificar: ${graves.length - aVerificar.length} hallazgos graves (tope por eje) — se reportan como 🟡`)
+      log(`sin verificar: ${graves.length - aVerificar.length} hallazgos graves (tope por rebanada) — se reportan como 🟡`)
     }
-    const verificados = await parallel(aVerificar.map(f => () =>
+    const veredictos = await parallel(aVerificar.map(f => () =>
       agent(`ABRE ${f.file} y lee alrededor de la línea ${f.line}; sigue el flujo aguas arriba y abajo antes de opinar.
 Hallazgo a REFUTAR: ${f.evidence}
-Refutado = fuiste al código y no se sostiene. Si no pudiste leer el archivo o te falta contexto, NO es refutado: devuelve read_the_file=false.`,
-        { model: 'sonnet', phase: 'Verificar', schema: VERDICT_SCHEMA }).then(v => ({ ...f, verdict: v }))))
+Refutado = fuiste al código y no se sostiene, y puedes CITAR TEXTUALMENTE las líneas que lo tumban (evidence_read).
+Si no pudiste leer el archivo, te falta contexto, o no tienes cita literal que mostrar: NO es refutado, devuelve read_the_file=false.`,
+        { model: 'sonnet', phase: 'Verificar', schema: VERDICT_SCHEMA })))
+    // Un verificador caído no borra el hallazgo: queda sin verdict y se reporta como 🟡.
+    const caidos = veredictos.filter(v => !v).length
+    if (caidos) log(`verificador caído en ${caidos} hallazgos graves — quedan sin verificar (🟡), no descartados`)
     // Una sola forma de salida: todo hallazgo lleva `verdict` (null = no pasó por verificación).
     const conVeredicto = new Set(aVerificar)
     return [
-      ...verificados.filter(Boolean),
+      ...aVerificar.map((f, i) => ({ ...f, verdict: veredictos[i] || null })),
       ...all.filter(f => !conVeredicto.has(f)).map(f => ({ ...f, verdict: null })),
     ]
   }

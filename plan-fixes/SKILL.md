@@ -46,8 +46,30 @@ Usa `AskUserQuestion` para las decisiones que bloquean el plan.
 - Marca como **CONDICIONAL** toda fase que dependa de una decisión del usuario, y di de qué decisión depende.
 - Cierra con la **secuencia recomendada** (Fase 0 → 1 → 2 …).
 
+## Tras la aprobación — forja el goal
+
+El plan no es el destino: es el combustible para un `/goal` que ejecuta la remediación en jornada autónoma. Cuando el usuario **apruebe el plan** (tal cual o con ajustes), no te pongas a implementar — **encadena con el skill `goalsmith`** para emitir el comando `/goal` listo para pegar.
+
+- **No reimplementes goalsmith.** Invócalo y pásale el plan ya masticado como insumo. El plan trae casi todo lo que su entrevista extrae, así que goalsmith salta preguntas y va directo a forjar:
+
+  | Del plan | → línea del goal |
+  |---|---|
+  | Fases entregables | `BACKLOG` — una unidad por iteración, commit por unidad |
+  | Métrica esperada por fase | `HECHO CUANDO` — criterio verificable, con el comando exacto |
+  | Archivos/áreas afectadas | `SCOPE` |
+  | Decisión "no tocar" del alcance | `NO TOCAR` / non-goals |
+  | Secuencia recomendada | orden del `BACKLOG` |
+  | Quick-wins | primeras unidades del backlog |
+
+- **El goal debe salir potente — óptimo y rápido, no tímido.** Al forjarlo, asegura que habilite:
+  - **Autonomía:** línea `DECISIONES` cargada — ante bifurcaciones reversibles el agente prueba y elige lo que más acerca al criterio, sin parar a preguntar. Solo escala lo irreversible o lo que toque un non-goal.
+  - **Paralelización de la implementación:** las fases que sean **independientes entre sí** (sin dependencia de datos ni de archivos) pueden atacarse en paralelo con un `Workflow` de agentes. Aquí **sí** aplica **worktree isolation** — cada agente escribe en su propia copia del repo para no pisar a los demás (requiere que el proyecto sea repo git). Las fases con dependencia van en serie, en el orden de la secuencia recomendada. Esto es lo contrario de la planeación: planear es read-only y no usa worktree; **ejecutar sí escribe, y por eso el worktree entra aquí.**
+  - **Backstop claro:** tope de iteraciones/presupuesto y qué hacer si se bloquea, para que no entre en loop ni marque falso done.
+
+- Deja que goalsmith aplique sus propios gates (criterio verificable, non-goals presentes, relectura de intención). Tú solo garantizas que el insumo que le pasas sea fiel al plan aprobado.
+
 ## Reglas
 
-- **NO escribas código ni edites archivos** en este paso. La implementación es un paso aparte que el usuario aprobará después de revisar el plan.
+- **NO escribas código ni edites archivos** en este paso. La implementación la hará el `/goal` que forjes, tras la aprobación del usuario.
 - Si necesitas una decisión del usuario para continuar, **DETENTE y pregunta** — no fijes el plan sobre un supuesto.
-- Cuando termines el plan, **pregunta por dónde quiere arrancar**.
+- Cuando termines el plan, **preséntalo para aprobación**. Si el usuario lo aprueba → forja el goal (arriba). Si quiere ajustes → itéralo antes de forjar. No forjes un goal sobre un plan que aún no aprobó.

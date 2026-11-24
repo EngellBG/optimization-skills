@@ -10,6 +10,7 @@ El norte de los tres es el **punto óptimo, no el máximo**: más velocidad, mej
 |---|---|---|
 | [`audit`](audit/SKILL.md) | Audita un proyecto como ingeniero senior crítico a propósito. Explora y verifica en el código antes de opinar; pregunta ante ambigüedad. Evalúa 9 ejes (UI, UX, DX, Datos, Seguridad, Resiliencia, Optimización, Verificación, Operacional) con severidad y anclas `archivo:línea`. Solo audita y propone — no cambia código. | Auditar, revisar a fondo, o evaluar la salud de un codebase. |
 | [`plan-fixes`](plan-fixes/SKILL.md) | Diseña un plan por fases para atacar los hallazgos de una auditoría previa. Primero pregunta las decisiones de alcance que cambian el plan de raíz y se detiene a esperar respuesta. Cada fase es entregable por sí sola, ordenada por riesgo→dependencia, con métrica y esfuerzo. No implementa todavía. | Tras `audit`, o para planear cómo atacar deuda técnica sin codear aún. |
+| [`poda`](poda/SKILL.md) | Reduce código sin perder calidad, de forma recursiva: de hojas a raíz (archivo → módulo → paquete) y por pasadas hasta punto fijo. Cada recorte es un commit que pasa la compuerta de calidad (tests, tipos, lint, comportamiento, API pública) o se revierte. Mide antes y después con `medir.sh`. | Reducir, adelgazar o simplificar código; quitar código muerto o duplicado. |
 | [`goalsmith`](goalsmith/SKILL.md) | Convierte un objetivo crudo en un comando `/goal` bien formado que sostiene jornadas largas: criterio verificable, backlog descompuesto, política de decisión autónoma, política de bloqueo y backstop. Emite el texto listo para pegar; no ejecuta el goal. | Tras aprobar un plan, o para cualquier tarea autónoma de larga duración. |
 
 ## Flujo típico
@@ -36,11 +37,12 @@ git clone https://github.com/EngellBG/optimization-skills.git
 cp -R optimization-skills/audit       ~/.claude/skills/
 cp -R optimization-skills/plan-fixes  ~/.claude/skills/
 cp -R optimization-skills/goalsmith   ~/.claude/skills/
+cp -R optimization-skills/poda        ~/.claude/skills/
 ```
 
-Reinicia Claude Code (o abre una sesión nueva) y quedan disponibles como `/audit`, `/plan-fixes` y `/goalsmith`.
+Reinicia Claude Code (o abre una sesión nueva) y quedan disponibles como `/audit`, `/plan-fixes`, `/goalsmith` y `/poda`.
 
-> Cada skill es un `SKILL.md` con frontmatter (`name`, `description`); `goalsmith` suma un `templates/` con el esqueleto del goal. No tienen dependencias ni scripts — solo instrucciones que Claude Code carga cuando el contexto coincide con la descripción.
+> Cada skill es un `SKILL.md` con frontmatter (`name`, `description`); `goalsmith` suma un `templates/` con el esqueleto del goal y `poda` un `medir.sh` (usa `scc`/`tokei` si están). No tienen otras dependencias — solo instrucciones que Claude Code carga cuando el contexto coincide con la descripción.
 
 ## Licencia
 
